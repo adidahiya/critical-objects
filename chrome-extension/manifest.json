@@ -3,6 +3,7 @@
     "version": "1.0",
     "description": "all your behavioral intents are belong to us",
     "permissions": [
+        "activeTab",
         "declarativeContent",
         "storage"
     ],
