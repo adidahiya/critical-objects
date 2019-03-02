@@ -2,4 +2,5 @@
  * Content script, run on all pages
  */
 
-console.log("yay i'm here");
+console.log("hello web page");
+ 
