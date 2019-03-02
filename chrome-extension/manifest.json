@@ -13,6 +13,14 @@
         ],
         "persistent": false
     },
+    "content_scripts": [
+        {
+            "matches": ["http://*/*", "https://*/*"],
+            "run_at": "document_idle",
+            "css": [],
+            "js": ["content.js"]
+        }
+    ],
     "page_action": {
         "default_popup": "popup.html"
     },
