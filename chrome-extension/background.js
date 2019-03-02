@@ -2,7 +2,8 @@
  * Background script for chrome extension
  */
 
-const ARDUINO_PORT_NAME = "/dev/cu.usbmodem14101";
+const ARDUINO_PORT_NAME = "/dev/cu.usbmodem14201";
+// const ARDUINO_PORT_NAME = "/dev/cu.usbserial-1410";
 let serial;
 // SerialPort#isConnected() isn't very reliable, just track the state ourselves for now
 let isConnected = false;
@@ -52,8 +53,14 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         lastTabNavigation = changeInfo.url;
 
         if (isGoodWebsite()) {
+            if (humanBehaviorState === "bad") {
+                console.log("Nice job, keep browsing facebook");
+            }
             humanBehaviorState = "good";
         } else {
+            if (humanBehaviorState === "good") {
+                console.log("Bad human!");
+            }
             humanBehaviorState = "bad";
         }
     }
@@ -87,7 +94,7 @@ function closeSerialConnection() {
 
 function bindSerialEventHandlers() {
     serial.on("connected", () => {
-        console.log("connected");
+        isConnected = true;
     });
     serial.on("open", () => {
         isConnected = true;

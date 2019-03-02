@@ -13,6 +13,7 @@ void loop() {
     if (Serial.available() > 0) {
         String data = Serial.readStringUntil('\n');
 
+        Serial.println(data);
         if (data == "humanBehaviorState:good") {
             isBlinking = false;
         } else if (data == "humanBehaviorState:bad") {
@@ -29,9 +30,9 @@ void loop() {
 
     if (isBlinking) {
         digitalWrite(LED_BUILTIN, HIGH);
-        delay(100);
+        delay(50);
         digitalWrite(LED_BUILTIN, LOW);
-        delay(100);
+        delay(50);
     } else {
         digitalWrite(LED_BUILTIN, LOW);
     }
