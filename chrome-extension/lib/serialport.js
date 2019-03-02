@@ -18,6 +18,8 @@
 //                         SerialPort
 // =============================================================================
 
+var DEBUG = false;
+
 /**
  * Base class for a serial port. Creates an instance of the serial library and prints "hostname":"serverPort" in the console.
  *
@@ -60,7 +62,9 @@ var SerialPort = function(_hostname, _serverport) {
 
   try {
     this.socket = new WebSocket("ws://" + this.hostname + ":" + this.serverport);
-    console.log(("ws://" + this.hostname + ":" + this.serverport));
+    if (DEBUG) {
+      console.log(("ws://" + this.hostname + ":" + this.serverport));
+    }
   } catch (err) {
     if (typeof self.errorCallback !== "undefined") {
       self.errorCallback("Couldn't connect to the server, is it running?");
@@ -68,7 +72,9 @@ var SerialPort = function(_hostname, _serverport) {
   }
 
   this.socket.onopen = function(event) {
-    console.log('opened socket');
+    if (DEBUG) {
+      console.log('opened socket');
+    }
     this.serialConnected = true;
 
     if (typeof self.connectedCallback !== "undefined") {

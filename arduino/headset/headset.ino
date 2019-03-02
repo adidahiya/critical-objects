@@ -1,4 +1,5 @@
-#define WEBSITE_DATA_PREFIX "website:"
+#define HUMAN_BEHAVIOR_DATA_PREFIX "humanBehaviorState:"
+#define GOOD_STATE "good"
 
 void setup() {
     Serial.begin(9600);
@@ -12,22 +13,25 @@ void loop() {
     if (Serial.available() > 0) {
         String data = Serial.readStringUntil('\n');
 
-        if (data.startsWith(WEBSITE_DATA_PREFIX)) {
-            // "website:https://github.com"
-            // trim off prefix by indexing into char array
-            char* websiteName = &data[strlen(WEBSITE_DATA_PREFIX)];
-            isBlinking = true;
-            Serial.println("hello browser");
-        } else {
+        if (data == "humanBehaviorState:good") {
             isBlinking = false;
+        } else if (data == "humanBehaviorState:bad") {
+            isBlinking = true;
         }
+
+        // if (data.startsWith(HUMAN_BEHAVIOR_DATA_PREFIX)) {
+        //     // "humanBehaviorState:good"
+        //     // trim off prefix by indexing into char array
+        //     char* state = &data[strlen(HUMAN_BEHAVIOR_DATA_PREFIX)];
+        //     Serial.println("hello browser");
+        // }
     }
 
     if (isBlinking) {
         digitalWrite(LED_BUILTIN, HIGH);
-        delay(500);
+        delay(100);
         digitalWrite(LED_BUILTIN, LOW);
-        delay(500);
+        delay(100);
     } else {
         digitalWrite(LED_BUILTIN, LOW);
     }

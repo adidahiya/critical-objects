@@ -13,3 +13,6 @@ indent_size = 4
 # Matches multiple files with brace expansion notation
 [*.{html,yml}]
 indent_size = 2
+
+[chrome-extension/lib/serialport.js]
+indent_size = 2

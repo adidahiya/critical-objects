@@ -4,6 +4,16 @@
 
 const ARDUINO_PORT_NAME = "/dev/cu.usbmodem14101";
 let serial;
+// SerialPort#isConnected() isn't very reliable, just track the state ourselves for now
+let isConnected = false;
+
+// other random state, should be better encapsulated
+
+/** @type {String} */
+let lastTabNavigation;
+
+/** @type {String} good, ok, bad */
+let humanBehaviorState = "good";
 
 chrome.runtime.onInstalled.addListener(() => {
     chrome.declarativeContent.onPageChanged.removeRules(undefined, function () {
@@ -23,34 +33,51 @@ chrome.runtime.onInstalled.addListener(() => {
             },
         ]);
     });
-
-    openSerialConnection();
 });
+
+// report behavior to Arduino every second
+setInterval(() => {
+    openSerialConnection(() => {
+        serial.write(`humanBehaviorState:${humanBehaviorState}`);
+    });
+}, 1000);
 
 chrome.webNavigation.onCompleted.addListener(() => {
     console.log("web navigation");
-    openSerialConnection();
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.url !== undefined) {
         console.log("tab updated", changeInfo.url);
-        openSerialConnection();
+        lastTabNavigation = changeInfo.url;
+
+        if (isGoodWebsite()) {
+            humanBehaviorState = "good";
+        } else {
+            humanBehaviorState = "bad";
+        }
     }
 });
 
-function ensureSerialPort() {
+function isGoodWebsite() {
+    const s = lastTabNavigation;
+    return s.startsWith("https://www.facebook")
+        || s.startsWith("https://www.instagram")
+        || s.startsWith("https://web.whatsapp");
+}
+
+function openSerialConnection(callback) {
     if (serial === undefined) {
         serial = new SerialPort();
         bindSerialEventHandlers();
     }
-}
 
-function openSerialConnection() {
-    ensureSerialPort();
-    if (!serial.isConnected()) {
+    if (isConnected) {
+        callback();
+    } else {
         console.log("Opening serial connection...");
         serial.open(ARDUINO_PORT_NAME);
+        serial.on("open", () => callback());
     }
 }
 
@@ -59,17 +86,27 @@ function closeSerialConnection() {
 }
 
 function bindSerialEventHandlers() {
-    serial.on("connected", () => console.log("connected"));
+    serial.on("connected", () => {
+        console.log("connected");
+    });
     serial.on("open", () => {
-        console.log("opened");
-        serial.write(`website:foobar`)
+        isConnected = true;
     });
     serial.on("data", handleSerialData);
-    serial.on("error", (err) => console.log("error", err));
-    serial.on("close", () => console.log("closed"));
+    serial.on("error", (err) => {
+        if (err === "Already open") {
+            return;
+        }
+        console.log("error", err);
+    });
+    serial.on("close", () => {
+        console.log("closed");
+    });
 }
 
 function handleSerialData() {
     const data = serial.readLine();
-    console.log("Data....", data);
+    if (data !== undefined && data.trim() !== "") {
+        console.log("Headset says:", data);
+    }
 }
