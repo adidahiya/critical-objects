@@ -12,6 +12,7 @@
     "background": {
         "scripts": [
             "lib/serialport.js",
+            "lib/Tone.js",
             "background.js"
         ],
         "persistent": true

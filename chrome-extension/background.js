@@ -7,6 +7,7 @@ const ARDUINO_PORT_NAME = "/dev/cu.usbmodem14201";
 let serial;
 // SerialPort#isConnected() isn't very reliable, just track the state ourselves for now
 let isConnected = false;
+let synth;
 
 // other random state, should be better encapsulated
 
@@ -41,6 +42,8 @@ setInterval(() => {
     openSerialConnection(() => {
         serial.write(`humanBehaviorState:${humanBehaviorState}`);
     });
+
+    playStatusBeep();
 }, 1000);
 
 chrome.webNavigation.onCompleted.addListener(() => {
@@ -65,6 +68,17 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         }
     }
 });
+
+function playStatusBeep() {
+    if (synth === undefined) {
+        synth = new Tone.Synth().toMaster();
+    }
+
+    // TODO: sound torture
+    if (humanBehaviorState !== "good") {
+        synth.triggerAttackRelease("C4", "16n");
+    }
+}
 
 function isGoodWebsite() {
     const s = lastTabNavigation;
