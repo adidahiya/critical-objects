@@ -9,6 +9,7 @@
     ],
     "background": {
         "scripts": [
+            "lib/serialport.js",
             "background.js"
         ],
         "persistent": false
