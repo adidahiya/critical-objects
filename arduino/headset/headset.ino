@@ -29,12 +29,10 @@ void loop() {
 
         Serial.println(data);
         if (data == "humanBehaviorState:good") {
-          if(data!=formerData){
 
             //open the gate and 'start' the timer
             gateControl.write(position2);
             timerAmt = millis();
-          }
         } else if (data == "humanBehaviorState:bad") {
           //make sure the gate closes immediately if state switches to "bad"
           servo.write(position1);
@@ -47,15 +45,11 @@ void loop() {
         //     char* state = &data[strlen(HUMAN_BEHAVIOR_DATA_PREFIX)];
         //     Serial.println("hello browser");
         // }
-    }else{
-      data = "humanBehaviorState:neutral";
-     }
+    }
 
      //once the gate has been open long enough, then shut it again
     if(millis() - timerAmt >= openAmt){
       servo.write(position1);
       timerAmt = 0;
     }
-
-formerData = data;
 }
