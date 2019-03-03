@@ -35,6 +35,10 @@ chrome.runtime.onInstalled.addListener(() => {
             },
         ]);
     });
+
+    chrome.storage.local.set({
+        mute: false,
+    });
 });
 
 // report behavior to Arduino every second
@@ -43,7 +47,11 @@ setInterval(() => {
         serial.write(`humanBehaviorState:${humanBehaviorState}`);
     });
 
-    playStatusBeep();
+    chrome.storage.local.get("mute", ({ mute }) => {
+        if (!mute) {
+            playStatusBeep();
+        }
+    });
 }, 1000);
 
 chrome.webNavigation.onCompleted.addListener(() => {
