@@ -1,10 +1,16 @@
 #define HUMAN_BEHAVIOR_DATA_PREFIX "humanBehaviorState:"
 #define GOOD_STATE "good"
 
+//set up gate control servo
+#include <Servo.h>
+Servo gateControl;
+const int servoPin = 4;
+
 void setup() {
     Serial.begin(9600);
     Serial.write("hello world");
     pinMode(LED_BUILTIN, OUTPUT);
+    gateControl.attach(servoPin);
 }
 
 bool isBlinking = false;
