@@ -5,26 +5,40 @@
 #include <Servo.h>
 Servo gateControl;
 const int servoPin = 4;
+const int position1 = 5;
+const int position2 = 80;
 
 void setup() {
     Serial.begin(9600);
     Serial.write("hello world");
     pinMode(LED_BUILTIN, OUTPUT);
+
     gateControl.attach(servoPin);
+    gateControl.write(position1);
+
 }
 
-bool isBlinking = false;
-bool
+bool isFeeding = false;
+
+String formerData = "humanBehaviorState:neutral";
+String data = "humanBehaviorState:neutral";
 
 void loop() {
     if (Serial.available() > 0) {
-        String data = Serial.readStringUntil('\n');
+        data = Serial.readStringUntil('\n');
 
         Serial.println(data);
         if (data == "humanBehaviorState:good") {
-            isFeeding = false;
+          if(data!=formerData){
+
+            //open the gate and 'start' the timer
+            gateControl.write(position2);
+            timerAmt = millis();
+          }
         } else if (data == "humanBehaviorState:bad") {
-            isFeeding = true;
+          //make sure the gate closes immediately if state switches to "bad"
+          servo.write(position1);
+          timerAmt = 0;
         }
 
         // if (data.startsWith(HUMAN_BEHAVIOR_DATA_PREFIX)) {
@@ -33,15 +47,15 @@ void loop() {
         //     char* state = &data[strlen(HUMAN_BEHAVIOR_DATA_PREFIX)];
         //     Serial.println("hello browser");
         // }
+    }else{
+      data = "humanBehaviorState:neutral";
+     }
+
+     //once the gate has been open long enough, then shut it again
+    if(millis() - timerAmt >= openAmt){
+      servo.write(position1);
+      timerAmt = 0;
     }
 
-    if (isFeeding) {
-        digitalWrite(LED_BUILTIN, HIGH);
-        delay(50);
-        digitalWrite(LED_BUILTIN, LOW);
-        delay(50);
-
-    } else {
-        digitalWrite(LED_BUILTIN, LOW);
-    }
+formerData = data;
 }
