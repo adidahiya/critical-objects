@@ -12,7 +12,7 @@ let isConnected = false;
 let synth;
 
 // only stores tabs that have completed loading their URLs
-let activeTab = {
+const activeTab = {
     /** @type {Number} */
     id: undefined,
     /** @type {String} */
@@ -25,6 +25,12 @@ let humanBehaviorState = "good";
 chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.set({
         mute: false,
+    });
+
+    chrome.tabs.query({ active: true }, (tabs) => {
+        if (tabs.length > 0) {
+            updateActiveTab(tabs[0].id, tabs[0].url);
+        }
     });
 });
 
@@ -43,8 +49,20 @@ setInterval(() => {
 
 // typically used to block or redirect requests, but we use this event to inspect if the right resources
 // (analytics and tracking pixels) are about to be requested for the active page
-// chrome.webRequest.onBeforeRequest.addListener(() => {
-// });
+chrome.webRequest.onBeforeRequest.addListener(
+    (details) => {
+        console.log(details);
+    },
+    {
+        urls: [
+            // "<all_urls>",
+            // "*://www.googletagservices.com/*",
+            // "*://www.google-analytics.com/*",
+            "*://www.facebook.com/tr*",
+        ],
+        types: ["main_frame", "sub_frame", "script", "image", "xmlhttprequest"]
+    },
+);
 
 // https://developer.chrome.com/extensions/tabs#event-onUpdated
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -52,8 +70,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         return;
     }
 
-    if (changeInfo.url !== undefined && changeInfo.status === "complete") {
-        console.log("active tab completed loading", changeInfo.url);
+    if (changeInfo.url !== undefined) {
         updateActiveTab(tabId, changeInfo.url);
 
         if (isGoodWebsite()) {
@@ -150,7 +167,7 @@ function bindSerialEventHandlers() {
     });
     serial.on("data", handleSerialData);
     serial.on("error", (err) => {
-        if (err === "Already open") {
+        if (err === undefined || err === "Already open") {
             return;
         }
         console.log("error", err);
