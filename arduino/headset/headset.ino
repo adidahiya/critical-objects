@@ -14,6 +14,7 @@ void setup() {
 }
 
 bool isBlinking = false;
+bool
 
 void loop() {
     if (Serial.available() > 0) {
@@ -21,9 +22,9 @@ void loop() {
 
         Serial.println(data);
         if (data == "humanBehaviorState:good") {
-            isBlinking = false;
+            isFeeding = false;
         } else if (data == "humanBehaviorState:bad") {
-            isBlinking = true;
+            isFeeding = true;
         }
 
         // if (data.startsWith(HUMAN_BEHAVIOR_DATA_PREFIX)) {
@@ -34,11 +35,12 @@ void loop() {
         // }
     }
 
-    if (isBlinking) {
+    if (isFeeding) {
         digitalWrite(LED_BUILTIN, HIGH);
         delay(50);
         digitalWrite(LED_BUILTIN, LOW);
         delay(50);
+
     } else {
         digitalWrite(LED_BUILTIN, LOW);
     }
