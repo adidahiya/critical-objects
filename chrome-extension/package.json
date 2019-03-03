@@ -1,0 +1,6 @@
+{
+  "devDependencies": {
+    "@types/chrome": "^0.0.81",
+    "@types/tone": "https://github.com/Tonejs/TypeScript.git"
+  }
+}

@@ -2,6 +2,8 @@
  * Background script for chrome extension
  */
 
+///<reference path="node_modules/@types/chrome/index.d.ts">
+
 const ARDUINO_PORT_NAME = "/dev/cu.usbmodem14201";
 // const ARDUINO_PORT_NAME = "/dev/cu.usbserial-1410";
 let serial;
