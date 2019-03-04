@@ -1,8 +1,9 @@
+#include <Servo.h>
+
 #define HUMAN_BEHAVIOR_DATA_PREFIX "humanBehaviorState:"
 #define GOOD_STATE "good"
 
 //set up gate control servo
-#include <Servo.h>
 Servo gateControl;
 const int servoPin = 4;
 const int position1 = 5;
@@ -19,6 +20,9 @@ void setup() {
 }
 
 bool isFeeding = false;
+unsigned long timerAmt = 0;
+unsigned long openAmt = 500;
+
 
 String formerData = "humanBehaviorState:neutral";
 String data = "humanBehaviorState:neutral";
