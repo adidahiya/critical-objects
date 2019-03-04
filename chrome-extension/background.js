@@ -16,8 +16,15 @@ const activeTab = {
     /** @type {Number} */
     id: undefined,
     /** @type {String} */
-    url: undefined,
-}
+    urlOrigin: undefined,
+    inSurveillanceNetwork: false,
+};
+
+/**
+ * Keeps track of which domains are within the surveillance network
+ * @type {Set.<string>}
+ */
+const surveillanceDomains = new Set();
 
 /** @type {String} good, ok, bad */
 let humanBehaviorState = "good";
@@ -35,10 +42,21 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // report behavior to Arduino every second
+let lastInSurveillanceNetwork = false;
 setInterval(() => {
-    openSerialConnection(() => {
-        serial.write(`humanBehaviorState:${humanBehaviorState}`);
-    });
+    const { inSurveillanceNetwork } = activeTab;
+
+    if (lastInSurveillanceNetwork && !inSurveillanceNetwork) {
+        // just left the network
+        console.log("bad human! punishment is required");
+        openSerialConnection(() => serial.write(`punishment`));
+    } else if (!lastInSurveillanceNetwork && inSurveillanceNetwork) {
+        // back in network
+        console.log("nice job, here's some candy");
+        openSerialConnection(() => serial.write(`reward`));
+    }
+
+    lastInSurveillanceNetwork = inSurveillanceNetwork;
 
     chrome.storage.local.get("mute", ({ mute }) => {
         if (!mute) {
@@ -50,14 +68,17 @@ setInterval(() => {
 // typically used to block or redirect requests, but we use this event to inspect if the right resources
 // (analytics and tracking pixels) are about to be requested for the active page
 chrome.webRequest.onBeforeRequest.addListener(
-    (details) => {
-        console.log(details);
+    ({ initiator }) => {
+        // got a tracking request, log this initiator as part of the surveillance network
+        if (initiator !== undefined) {
+            surveillanceDomains.add(initiator);
+            if (initiator === activeTab.urlOrigin) {
+                activeTab.inSurveillanceNetwork = true;
+            }
+        }
     },
     {
         urls: [
-            // "<all_urls>",
-            // "*://www.googletagservices.com/*",
-            // "*://www.google-analytics.com/*",
             "*://www.facebook.com/tr*",
         ],
         types: ["main_frame", "sub_frame", "script", "image", "xmlhttprequest"]
@@ -72,18 +93,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
     if (changeInfo.url !== undefined) {
         updateActiveTab(tabId, changeInfo.url);
-
-        if (isGoodWebsite()) {
-            if (humanBehaviorState === "bad") {
-                console.log("Nice job, keep browsing facebook");
-            }
-            humanBehaviorState = "good";
-        } else {
-            if (humanBehaviorState === "good") {
-                console.log("Bad human!");
-            }
-            humanBehaviorState = "bad";
-        }
     }
 });
 
@@ -103,26 +112,37 @@ chrome.webNavigation.onCommitted.addListener(({ tabId, url, frameId }) => {
     // we only care about navigation in the active tab, since inactive tabs will have their urls queried
     // upon tabs.onActivated
     if (tabId === activeTab.id) {
-        updateActiveTab(tabId, url);
+        updateActiveTab(tabId, withoutTrailingSlash(url));
     }
 });
 
 function updateActiveTab(tabId,  url) {
-    if (activeTab.id === tabId && activeTab.url === url) {
+    if (url === undefined || url.startsWith("chrome://")) {
         return;
     }
 
-    if (url.startsWith("chrome://")) {
+    const urlOrigin = getUrlOrigin(url);
+
+    if (activeTab.id === tabId && activeTab.urlOrigin === urlOrigin) {
         return;
     }
 
-    console.log("active tab updated", tabId, url);
     activeTab.id = tabId;
-    activeTab.url = url
+    activeTab.urlOrigin = urlOrigin;
+    activeTab.inSurveillanceNetwork = surveillanceDomains.has(urlOrigin) || isFacebookDomain(urlOrigin);
+    console.log("active tab updated", activeTab);
+}
+
+/** N.B. this is a pretty slow way to do this */
+function getUrlOrigin(/** @type {String} */ url) {
+    const tmpAnchor = document.createElement("a");
+    tmpAnchor.href = url;
+    return tmpAnchor.origin;
 }
 
 function playStatusBeep() {
     if (synth === undefined) {
+        // @ts-ignore
         synth = new Tone.Synth().toMaster();
     }
 
@@ -132,8 +152,7 @@ function playStatusBeep() {
     }
 }
 
-function isGoodWebsite() {
-    const { url } = activeTab;
+function isFacebookDomain(/** @type {String} */ url) {
     return url.startsWith("https://www.facebook")
         || url.startsWith("https://www.instagram")
         || url.startsWith("https://web.whatsapp");
@@ -141,6 +160,7 @@ function isGoodWebsite() {
 
 function openSerialConnection(callback) {
     if (serial === undefined) {
+        // @ts-ignore
         serial = new SerialPort();
         bindSerialEventHandlers();
     }
@@ -182,4 +202,12 @@ function handleSerialData() {
     if (data !== undefined && data.trim() !== "") {
         console.log("Headset says:", data);
     }
+}
+
+function withoutTrailingSlash(/** @type {String} */ str) {
+    if (str === undefined || str === "" || str[str.length - 1] !== "/") {
+        return;
+    }
+
+    return str.substr(str.length - 1);
 }
