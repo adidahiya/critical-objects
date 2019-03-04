@@ -32,15 +32,14 @@ void loop() {
         data = Serial.readStringUntil('\n');
 
         Serial.println(data);
-        if (data == "humanBehaviorState:good") {
-
+        if (data == "reward") {
             //open the gate and 'start' the timer
             gateControl.write(position2);
             timerAmt = millis();
-        } else if (data == "humanBehaviorState:bad") {
-          //make sure the gate closes immediately if state switches to "bad"
-          servo.write(position1);
-          timerAmt = 0;
+        } else if (data == "punishment") {
+            // make sure the gate closes immediately if state switches to "bad"
+            gateControl.write(position1);
+            timerAmt = 0;
         }
 
         // if (data.startsWith(HUMAN_BEHAVIOR_DATA_PREFIX)) {
@@ -51,9 +50,9 @@ void loop() {
         // }
     }
 
-     //once the gate has been open long enough, then shut it again
-    if(millis() - timerAmt >= openAmt){
-      servo.write(position1);
-      timerAmt = 0;
+     // once the gate has been open long enough, then shut it again
+    if (millis() - timerAmt >= openAmt){
+        gateControl.write(position1);
+        timerAmt = 0;
     }
 }

@@ -26,8 +26,10 @@ const activeTab = {
  */
 const surveillanceDomains = new Set();
 
-/** @type {String} good, ok, bad */
-let humanBehaviorState = "good";
+/** @type {"punishment" | "reward" | undefined} */
+let conditioningState;
+let isPunishmentActive = false;
+let punishmentStartedTime = 0;
 
 chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.set({
@@ -49,11 +51,13 @@ setInterval(() => {
     if (lastInSurveillanceNetwork && !inSurveillanceNetwork) {
         // just left the network
         console.log("bad human! punishment is required");
-        openSerialConnection(() => serial.write(`punishment`));
+        conditioningState = "punishment";
+        openSerialConnection(() => serial.write(conditioningState));
     } else if (!lastInSurveillanceNetwork && inSurveillanceNetwork) {
         // back in network
         console.log("nice job, here's some candy");
-        openSerialConnection(() => serial.write(`reward`));
+        conditioningState = "reward";
+        openSerialConnection(() => serial.write(conditioningState));
     }
 
     lastInSurveillanceNetwork = inSurveillanceNetwork;
@@ -117,7 +121,7 @@ chrome.webNavigation.onCommitted.addListener(({ tabId, url, frameId }) => {
 });
 
 function updateActiveTab(tabId,  url) {
-    if (url === undefined || url.startsWith("chrome://")) {
+    if (url === undefined || url.startsWith("chrome://") || url.startsWith("chrome-extension://")) {
         return;
     }
 
@@ -146,9 +150,24 @@ function playStatusBeep() {
         synth = new Tone.Synth().toMaster();
     }
 
-    // TODO: sound torture
-    if (humanBehaviorState !== "good") {
-        synth.triggerAttackRelease("C4", "16n");
+    // 3000 hz is an annoying tone
+    if (conditioningState === "punishment") {
+        if (isPunishmentActive) {
+            // continue
+        } else {
+            isPunishmentActive = true;
+            punishmentStartedTime = Date.now();
+            // -20db is pretty quiet
+            Tone.Master.volume.value = -100;
+            synth.triggerAttack(3000);
+            // ramp to full volume over one minute
+            Tone.Master.volume.linearRampToValueAtTime(0, 60);
+        }
+    } else {
+        if (isPunishmentActive) {
+            isPunishmentActive = false;
+            synth.triggerRelease();
+        }
     }
 }
 
