@@ -31,7 +31,6 @@ void loop() {
     if (Serial.available() > 0) {
         data = Serial.readStringUntil('\n');
 
-        Serial.println(data);
         if (data == "reward") {
             //open the gate and 'start' the timer
             gateControl.write(position2);
@@ -41,13 +40,6 @@ void loop() {
             gateControl.write(position1);
             timerAmt = 0;
         }
-
-        // if (data.startsWith(HUMAN_BEHAVIOR_DATA_PREFIX)) {
-        //     // "humanBehaviorState:good"
-        //     // trim off prefix by indexing into char array
-        //     char* state = &data[strlen(HUMAN_BEHAVIOR_DATA_PREFIX)];
-        //     Serial.println("hello browser");
-        // }
     }
 
      // once the gate has been open long enough, then shut it again

@@ -4,7 +4,7 @@
 
 ///<reference path="node_modules/@types/chrome/index.d.ts">
 
-const ARDUINO_PORT_NAME = "/dev/cu.usbmodem14201";
+const ARDUINO_PORT_NAME = "/dev/cu.usbmodem14101";
 // const ARDUINO_PORT_NAME = "/dev/cu.usbserial-1410";
 let serial;
 // SerialPort#isConnected() isn't very reliable, just track the state ourselves for now
@@ -24,7 +24,11 @@ const activeTab = {
  * Keeps track of which domains are within the surveillance network
  * @type {Set.<string>}
  */
-const surveillanceDomains = new Set();
+const surveillanceDomains = new Set([
+    "https://www.theguardian.com",
+    "https://www.nytimes.com",
+    "https://www.buzzfeed.com"
+]);
 
 /** @type {"punishment" | "reward" | undefined} */
 let conditioningState;
@@ -45,6 +49,8 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // report behavior to Arduino every second
 let lastInSurveillanceNetwork = false;
+let lastInSurveillanceNetworkRewardTime = 0;
+
 setInterval(() => {
     const { inSurveillanceNetwork } = activeTab;
 
@@ -57,16 +63,22 @@ setInterval(() => {
         // back in network
         console.log("nice job, here's some candy");
         conditioningState = "reward";
+        lastInSurveillanceNetworkRewardTime = Date.now();
         openSerialConnection(() => serial.write(conditioningState));
+    }
+
+    if (lastInSurveillanceNetwork && inSurveillanceNetwork) {
+        const now = Date.now();
+        if (now - lastInSurveillanceNetworkRewardTime > 30 * 1000) {
+            lastInSurveillanceNetworkRewardTime = Date.now();
+            console.log("nice job, here's some candy");
+            openSerialConnection(() => serial.write(conditioningState));
+        }
     }
 
     lastInSurveillanceNetwork = inSurveillanceNetwork;
 
-    chrome.storage.local.get("mute", ({ mute }) => {
-        if (!mute) {
-            playStatusBeep();
-        }
-    });
+    maybePlaySoundTorture();
 }, 1000);
 
 // typically used to block or redirect requests, but we use this event to inspect if the right resources
@@ -121,11 +133,15 @@ chrome.webNavigation.onCommitted.addListener(({ tabId, url, frameId }) => {
 });
 
 function updateActiveTab(tabId,  url) {
-    if (url === undefined || url.startsWith("chrome://") || url.startsWith("chrome-extension://")) {
+    if (url === undefined) {
         return;
     }
 
     const urlOrigin = getUrlOrigin(url);
+
+    if (urlOrigin.startsWith("chrome")) {
+        return;
+    }
 
     if (activeTab.id === tabId && activeTab.urlOrigin === urlOrigin) {
         return;
@@ -144,10 +160,11 @@ function getUrlOrigin(/** @type {String} */ url) {
     return tmpAnchor.origin;
 }
 
-function playStatusBeep() {
+function maybePlaySoundTorture() {
     if (synth === undefined) {
         // @ts-ignore
         synth = new Tone.Synth().toMaster();
+        Tone.Master.volume.value = -100;
     }
 
     // 3000 hz is an annoying tone
@@ -157,8 +174,6 @@ function playStatusBeep() {
         } else {
             isPunishmentActive = true;
             punishmentStartedTime = Date.now();
-            // -20db is pretty quiet
-            Tone.Master.volume.value = -100;
             synth.triggerAttack(3000);
             // ramp to full volume over one minute
             Tone.Master.volume.linearRampToValueAtTime(0, 60);
@@ -167,14 +182,15 @@ function playStatusBeep() {
         if (isPunishmentActive) {
             isPunishmentActive = false;
             synth.triggerRelease();
+            Tone.Master.volume.linearRampToValueAtTime(-100, 1);
         }
     }
 }
 
 function isFacebookDomain(/** @type {String} */ url) {
-    return url.startsWith("https://www.facebook")
-        || url.startsWith("https://www.instagram")
-        || url.startsWith("https://web.whatsapp");
+    return url.indexOf("facebook.com") > 0
+        || url.indexOf("instagram.com") > 0
+        || url.indexOf("web.whatsapp") > 0;
 }
 
 function openSerialConnection(callback) {
