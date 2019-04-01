@@ -4,17 +4,24 @@ import cv2
 import numpy
 import os
 import random
+import threading
 import tkinter
+import atexit
+import time
 from PIL import Image, ImageTk
 
-def detect_faces():
+camera = picamera.PiCamera()
+
+"""
+Returns number of faces found
+"""
+def detect_faces(write_image):
     # create memory stream
     stream = io.BytesIO()
     # get the picture
-    with picamera.PiCamera() as camera:
-        camera.resolution = (320, 240)
-        print("capturing image...")
-        camera.capture(stream, format='jpeg')
+    camera.resolution = (320, 240)
+    print("capturing image...")
+    camera.capture(stream, format='jpeg')
 
     # convert to numpy array
     buff = numpy.fromstring(stream.getvalue(), dtype=numpy.uint8)
@@ -35,12 +42,15 @@ def detect_faces():
 
     print("Found " + str(len(faces)) + " face(s)")
 
-    # draw rectangle around faces
-    for (x, y, w, h) in faces:
-        cv2.rectangle(image, (x, y), (x+w, y+h), (255, 255, 0), 2)
+    if write_image:
+        # draw rectangle around faces
+        for (x, y, w, h) in faces:
+            cv2.rectangle(image, (x, y), (x+w, y+h), (255, 255, 0), 2)
 
-    # save image
-    cv2.imwrite('result.jpg', image)
+        # save image
+        cv2.imwrite('result.jpg', image)
+
+    return len(faces)
 
 
 def corrupt_image(filename):
@@ -84,15 +94,25 @@ def corrupt_image(filename):
                 i = i + 1
                 byte = f.read(1)
 
+def set_interval(func, sec):
+    def func_wrapper():
+        set_interval(func, sec)
+        func()
+    t = threading.Timer(sec, func_wrapper)
+    t.start()
+    return t
 
-def main_show_painting(filename):
+def main_show_painting(original_filename):
+    filename = "new_" + original_filename
     pilImage = Image.open(filename)
+
     root = tkinter.Tk()
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
     root.overrideredirect(1)
     root.geometry("%dx%d+0+0" % (w, h))
     root.focus_set()
     root.bind("<Escape>", lambda e: (e.widget.withdraw(), e.widget.quit()))
+
     canvas = tkinter.Canvas(root, width=w, height=h)
     canvas.pack()
     canvas.configure(background='black')
@@ -111,8 +131,26 @@ def main_show_painting(filename):
         imageSprite = canvas.create_image(w/2, h/2, image=image)
         root.mainloop()
 
-    detect_faces()
-    show_painting()
+    def main_loop():
+        print("running main loop...")
+        num_faces = detect_faces(False)
+        if num_faces == 0:
+            corrupt_image(original_filename)
+        show_painting()
 
-main_show_painting("pikachu.jpg")
+    seconds = 0
+    # TODO: non-blocking?
+    while true:
+        main_loop()
+        time.sleep(5)
+        seconds += 5
+
+    # set_interval(main_loop, 3)
+
+def handle_exit():
+    camera.close()
+    print("closing camera and exiting...")
+
+atexit.register(handle_exit)
+main_show_painting("glacier.jpg")
 
