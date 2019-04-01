@@ -1,6 +1,6 @@
 {
     "board": "arduino:samd:mkrwifi1010",
     "port": "/dev/cu.usbmodem14201",
-    "sketch": "arduino/headset/headset.ino",
-    "output": "arduino/build"
+    "sketch": "surveillance-conditioning/arduino/headset/headset.ino",
+    "output": "surveillance-conditioning/arduino/build"
 }
