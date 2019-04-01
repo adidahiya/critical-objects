@@ -9,8 +9,14 @@ import tkinter
 import atexit
 import time
 from PIL import Image, ImageTk
+from jpglitch import Jpeg # local module
 
+print("starting camera...")
 camera = picamera.PiCamera()
+
+# load cascade file for detecting faces
+print("loading classifier...")
+face_cascade = cv2.CascadeClassifier('./face_detect/haarcascade_frontalface_default.xml')
 
 """
 Returns number of faces found
@@ -28,10 +34,6 @@ def detect_faces(write_image):
 
     # create opencv image
     image = cv2.imdecode(buff, 1)
-
-    # load cascade file for detecting faces
-    print("loading classifier...")
-    face_cascade = cv2.CascadeClassifier('./face_detect/haarcascade_frontalface_default.xml')
 
     # convert to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -52,8 +54,13 @@ def detect_faces(write_image):
 
     return len(faces)
 
+DHT_marker = b'\xc4'
+SOS_marker = b'\xda'
 
-def corrupt_image(filename):
+"""
+Raspberry Pi OS doesn't like opening corrupted jpegs, but macOS can do it fine :(
+"""
+def corrupt_image_bytes(filename):
     filesize = os.path.getsize("./" + filename)
 
     # don't want to corrupt any bytes before this one
@@ -71,8 +78,7 @@ def corrupt_image(filename):
             i = 0
 
             while byte != b"":
-                if markerNext and byte == b'\xc4' and not seenFirstDHT:
-                    # print("DHT ********************************************************")
+                if markerNext and byte == SOS_marker and not seenFirstDHT:
                     seenFirstDHT = True
 
                 if byte == b'\xff':
@@ -82,10 +88,12 @@ def corrupt_image(filename):
 
                 if seenFirstDHT:
                     startDHT = i
-                    randByteLocation = random.randint(startDHT, filesize - 1)
+                    # skip 16 bytes for SOS segment
+                    randByteLocation = random.randint(startDHT + 16, filesize - 1)
 
                 g.seek(i)
                 if i > 0 and i == randByteLocation:
+                    print("corrupting byte ", i)
                     newByte = bytes([(byte[0] << 1) % 256])
                     g.write(newByte)
                 else:
@@ -102,18 +110,20 @@ def set_interval(func, sec):
     t.start()
     return t
 
-def main_show_painting(original_filename):
+def corrupt_image_glitch(filename):
+    amount = 20
+    seed = 10
+    iterations = 10
+    with open(filename, "rb") as f:
+        image_bytes = bytearray(f.read())
+        jpeg = Jpeg(image_bytes, amount, seed, iterations)
+        jpeg.save_image("new_" + filename)
+
+def main_show_painting(tkRoot, original_filename):
     filename = "new_" + original_filename
     pilImage = Image.open(filename)
 
-    root = tkinter.Tk()
-    w, h = root.winfo_screenwidth(), root.winfo_screenheight()
-    root.overrideredirect(1)
-    root.geometry("%dx%d+0+0" % (w, h))
-    root.focus_set()
-    root.bind("<Escape>", lambda e: (e.widget.withdraw(), e.widget.quit()))
-
-    canvas = tkinter.Canvas(root, width=w, height=h)
+    canvas = tkinter.Canvas(tkRoot, width=w, height=h)
     canvas.pack()
     canvas.configure(background='black')
     imgWidth, imgHeight = pilImage.size
@@ -124,23 +134,30 @@ def main_show_painting(original_filename):
         imgHeight = int(imgHeight * ratio)
         pilImage = pilImage.resize((imgWidth, imgHeight), Image.ANTIALIAS)
 
-    def show_painting():
-        # read file again
-        pilImage = Image.open(filename)
-        image = ImageTk.PhotoImage(pilImage)
-        imageSprite = canvas.create_image(w/2, h/2, image=image)
-        root.mainloop()
+    def show_painting(read_file_again):
+        if read_file_again:
+            # read file again
+            pilImage = Image.open(filename)
+            image = ImageTk.PhotoImage(pilImage)
+            imageSprite = canvas.create_image(w/2, h/2, image=image)
+        tkRoot.mainloop()
 
     def main_loop():
         print("running main loop...")
         num_faces = detect_faces(False)
+        did_file_change = False
+
         if num_faces == 0:
-            corrupt_image(original_filename)
-        show_painting()
+            print("corrupting image...")
+            # corrupt_image_bytes(original_filename)
+            corrupt_image_glitch(original_filename)
+            did_file_change = True
+
+        show_painting(did_file_change)
 
     seconds = 0
     # TODO: non-blocking?
-    while true:
+    while True:
         main_loop()
         time.sleep(5)
         seconds += 5
@@ -152,5 +169,13 @@ def handle_exit():
     print("closing camera and exiting...")
 
 atexit.register(handle_exit)
-main_show_painting("glacier.jpg")
+
+root = tkinter.Tk()
+w, h = root.winfo_screenwidth(), root.winfo_screenheight()
+root.overrideredirect(1)
+root.geometry("%dx%d+0+0" % (w, h))
+root.focus_set()
+root.bind("<Escape>", lambda e: (e.widget.withdraw(), e.widget.quit()))
+
+main_show_painting(root, "glacier.jpg")
 
