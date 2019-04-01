@@ -111,9 +111,9 @@ def set_interval(func, sec):
     return t
 
 def corrupt_image_glitch(filename):
-    amount = 30
+    amount = 20
     seed = 4
-    iterations = 20
+    iterations = 2
 
     filename_split = filename.split(".")
     first_parts = filename_split[0].split("_")
@@ -155,7 +155,8 @@ def main_show_painting(tkRoot, original_filename, interval_length):
             image = ImageTk.PhotoImage(pilImage)
             canvas.delete("all")
             imageSprite = canvas.create_image(w/2, h/2, image=image)
-        tkRoot.mainloop()
+        tkRoot.update_idletasks()
+        tkRoot.update()
 
     def main_loop():
         print("running main loop...")
@@ -194,5 +195,5 @@ root.geometry("%dx%d+0+0" % (w, h))
 root.focus_set()
 root.bind("<Escape>", lambda e: (e.widget.withdraw(), e.widget.quit()))
 
-main_show_painting(root, "glacier.jpg", 10)
+main_show_painting(root, "glacier.jpg", 2)
 
