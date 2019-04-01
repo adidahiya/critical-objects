@@ -14,5 +14,5 @@ indent_size = 4
 [*.{html,yml}]
 indent_size = 2
 
-[chrome-extension/lib/serialport.js]
+[surveillance-conditioning/chrome-extension/lib/serialport.js]
 indent_size = 2
