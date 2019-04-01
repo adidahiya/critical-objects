@@ -111,16 +111,30 @@ def set_interval(func, sec):
     return t
 
 def corrupt_image_glitch(filename):
-    amount = 20
-    seed = 10
-    iterations = 10
+    amount = 30
+    seed = 4
+    iterations = 20
+
+    filename_split = filename.split(".")
+    first_parts = filename_split[0].split("_")
+    i = int(first_parts[-1])
+    new_parts = first_parts[0:-1]
+    new_parts.append(str(i + 1))
+    new_filename = "_".join(new_parts) + "." + filename_split[1]
+
     with open(filename, "rb") as f:
         image_bytes = bytearray(f.read())
         jpeg = Jpeg(image_bytes, amount, seed, iterations)
-        jpeg.save_image("new_" + filename)
+        jpeg.save_image(new_filename)
 
-def main_show_painting(tkRoot, original_filename):
-    filename = "new_" + original_filename
+def main_show_painting(tkRoot, original_filename, interval_length):
+    filename_split = original_filename.split(".")
+    i = 0
+
+    def get_current_filename():
+        return filename_split[0] + "_" + str(i) + "." + filename_split[1]
+
+    filename = get_current_filename()
     pilImage = Image.open(filename)
 
     canvas = tkinter.Canvas(tkRoot, width=w, height=h)
@@ -137,8 +151,9 @@ def main_show_painting(tkRoot, original_filename):
     def show_painting(read_file_again):
         if read_file_again:
             # read file again
-            pilImage = Image.open(filename)
+            pilImage = Image.open(get_current_filename())
             image = ImageTk.PhotoImage(pilImage)
+            canvas.delete("all")
             imageSprite = canvas.create_image(w/2, h/2, image=image)
         tkRoot.mainloop()
 
@@ -150,17 +165,19 @@ def main_show_painting(tkRoot, original_filename):
         if num_faces == 0:
             print("corrupting image...")
             # corrupt_image_bytes(original_filename)
-            corrupt_image_glitch(original_filename)
+            corrupt_image_glitch(get_current_filename())
             did_file_change = True
 
         show_painting(did_file_change)
+        return did_file_change
 
-    seconds = 0
-    # TODO: non-blocking?
     while True:
-        main_loop()
-        time.sleep(5)
-        seconds += 5
+        did_file_change = main_loop()
+
+        if did_file_change:
+            i += 1
+
+        time.sleep(interval_length)
 
     # set_interval(main_loop, 3)
 
@@ -177,5 +194,5 @@ root.geometry("%dx%d+0+0" % (w, h))
 root.focus_set()
 root.bind("<Escape>", lambda e: (e.widget.withdraw(), e.widget.quit()))
 
-main_show_painting(root, "glacier.jpg")
+main_show_painting(root, "glacier.jpg", 10)
 
