@@ -5,10 +5,4 @@ __pycache__
 *.swp
 brew-debug.log
 
-# Project-specific
-
 pupil-trainer/hudkit
-
-discriminating-oracle/face-recognition/dataset
-discriminating-oracle/face-recognition/model
-discriminating-oracle/face-recognition/output
