@@ -1,5 +1,5 @@
 # USAGE
-# python recognize_video.py --detector face_detection_model \
+# python recognize_video.py --detector model \
 #	--embedding-model openface_nn4.small2.v1.t7 \
 #	--recognizer output/recognizer.pickle \
 #	--le output/le.pickle
@@ -52,8 +52,18 @@ time.sleep(2.0)
 # start the FPS throughput estimator
 fps = FPS().start()
 
+# if a trusted face is detected with a given confidence for enough time,
+# enter "unlocked" mode
+state = 'locked'  # 'locked' | 'unlocking' | 'unlocked'
+unlock_timer = 2  # seconds
+unlock_confidence = 0.75
+time_of_last_trusted_face = 0
+trusted_faces = ['adi', 'brent']
+
 # loop over frames from the video file stream
 while True:
+    now = time.time()
+
     # grab the frame from the threaded video stream
     frame = vs.read()
 
@@ -72,6 +82,11 @@ while True:
     # faces in the input image
     detector.setInput(imageBlob)
     detections = detector.forward()
+
+    seen_trusted_face = False
+    # if we're in the progress of unlocking (counting up to the timer),
+    # we don't want to update time_of_last_trusted_face
+    # is_unlocking = now - time_of_last_trusted_face < unlock_timer
 
     # loop over the detections
     for i in range(0, detections.shape[2]):
@@ -108,14 +123,32 @@ while True:
             proba = preds[j]
             name = le.classes_[j]
 
+            # if we see a trusted face, we can update state
+            if name in trusted_faces and confidence > unlock_confidence:
+                seen_trusted_face = True
+                if state == 'locked':
+                    state = 'unlocking'
+                    time_of_last_trusted_face = now
+                elif state == 'unlocking':
+                    if now - time_of_last_trusted_face > unlock_timer:
+                        state = 'unlocked'
+                else:
+                    # unlocked
+                    pass
+
             # draw the bounding box of the face along with the
             # associated probability
             text = "{}: {:.2f}%".format(name, proba * 100)
             y = startY - 10 if startY - 10 > 10 else startY + 10
+            color = (0, 255, 0) if state == 'unlocked' else (0, 0, 255)
             cv2.rectangle(frame, (startX, startY), (endX, endY),
-                          (0, 0, 255), 2)
+                          color, 2)
             cv2.putText(frame, text, (startX, y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
+
+    if not seen_trusted_face:
+        state = 'locked'
+        time_of_last_trusted_face = 0
 
     # update the FPS counter
     fps.update()
