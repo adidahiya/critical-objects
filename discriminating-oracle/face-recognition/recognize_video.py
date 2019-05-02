@@ -8,12 +8,23 @@
 from imutils.video import VideoStream
 from imutils.video import FPS
 import numpy as np
+from matplotlib import pyplot as plt
+from time import sleep
+import sys
 import argparse
 import imutils
 import pickle
 import time
 import cv2
 import os
+import random
+
+
+# image manipulation functions
+def grab_frame(cap):
+    ret, frame = cap.read()
+    return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
 
 # construct the argument parser and parse the arguments
 ap = argparse.ArgumentParser()
@@ -47,6 +58,7 @@ le = pickle.loads(open(args["le"], "rb").read())
 # initialize the video stream, then allow the camera sensor to warm up
 print("[INFO] starting video stream...")
 vs = VideoStream(src=0).start()
+vs2 = cv2.VideoCapture(0)
 time.sleep(2.0)
 
 # start the FPS throughput estimator
@@ -66,6 +78,8 @@ while True:
 
     # grab the frame from the threaded video stream
     frame = vs.read()
+
+    # testing image pyramid
 
     # resize the frame to have a width of 600 pixels (while
     # maintaining the aspect ratio), and then grab the image
@@ -145,16 +159,83 @@ while True:
                           color, 2)
             cv2.putText(frame, text, (startX, y),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
-
+    print("trusted", seen_trusted_face)
     if not seen_trusted_face:
         state = 'locked'
         time_of_last_trusted_face = 0
 
-    # update the FPS counter
-    fps.update()
+        # testing canny edge detection
+        edges = cv2.Canny(frame, 100, 200)
+        output = edges
+        # testing image pyramid output
+#        A = frame
+#        A = cv2.resize(A, (300, 300))
+#        print("A: ", A)
+#        cv2.imshow("Frame ", A)
+#        cv2.imwrite("./image_A.jpg", A)
+#        dir = './dataset/adi/'
+#        randimg = random.choice(os.listdir(dir))
+#        B = cv2.imread(str(os.path.join(dir, randimg)))
+#        B = cv2.resize(B, (300, 300))
+#        print("B: ", B)
+#        cv2.imshow("Frame ", B)
+#        sleep(2)
+#        cv2.imwrite('./image_B.jpg', B)
+#        # generate Gaussian pyramid for A
+#        G = A.copy()
+#        gpA = [G]
+#        for i in range(6):
+#            G = cv2.pyrDown(gpA[i])
+#            gpA.append(G)
+#
+#        # generate Gaussian pyramid for B
+#        G = B.copy()
+#        gpB = [G]
+#        for i in range(6):
+#            G = cv2.pyrDown(gpA[i])
+#            gpB.append(G)
+#
+#        # generate Laplacian Pyramid for A
+#        lpA = [gpA[5]]
+#        for i in range(5, 0, -1):
+#            size = (gpA[i-1].shape[1], gpA[i-1].shape[0])
+#            GE = cv2.pyrUp(gpA[i], dstsize=size)
+#            L = cv2.subtract(gpA[i-1], GE)
+#            lpA.append(L)
+#
+#        # generate Laplacian Pyramid for B
+#        lpB = [gpB[5]]
+#        for i in range(5, 0, -1):
+#            size = (gpB[i-1].shape[1], gpB[i-1].shape[0])
+#            GE = cv2.pyrUp(gpB[i], dstsize=size)
+#            lpB.append(L)
+#
+#        # Now add left and right halves of images in each level
+#        LS = []
+#        for la, lb in zip(lpA, lpB):
+#            rows, cols, dpt = la.shape
+#            ls = np.hstack((la[:, 0:cols//2], lb[:, cols//2:]))
+#            LS.append(ls)
+#
+#        # now reconstruct
+#        ls_ = LS[0]
+#        for i in range(1, 6):
+#            size = (LS[i].shape[1], LS[i].shape[0])
+#            ls_ = cv2.pyrUp(ls_, dstsize=size)
+#            ls_ = cv2.add(ls_, LS[i])
+#        # image with direct connecting each half
+#        real = np.hstack((A[:, :cols//2], B[:, cols//2:]))
+#        cv2.imshow("Frame", ls_)
+#        cv2.imwrite("./blend_output.jpg", ls_)
+    else:
+        print("hitting else")
+        output = frame
+        fps.update()
 
+    cv2.imshow("Frame", output)
+    # update the FPS counter
     # show the output frame
-    cv2.imshow("Frame", frame)
+
     key = cv2.waitKey(1) & 0xFF
 
     # if the `q` key was pressed, break from the loop
